@@ -991,13 +991,31 @@ details.chron summary{cursor:pointer;font-weight:600;font-size:.92rem}
       if (!w) return;
       w.addEventListener('statechange', () => { if (w.state === 'installed' && sw.controller) offer(w); });
     }
+    // Ask the server for every app file and report the ones that aren't there.
+    async function missingFiles() {
+      const files = ['index.html', 'sw.js', 'catalog.js', 'manifest.json', 'lib/qrcode.js', 'lib/jsQR.js', 'icon.svg', 'icon-192.png', 'icon-512.png'];
+      const res = await Promise.all(files.map(f => fetch(f, { cache: 'no-store', method: 'HEAD' }).then(r => r.ok ? null : `${f} (${r.status})`).catch(() => undefined)));
+      if (res.every(r => r === undefined)) return null; // couldn't reach the server at all
+      return res.filter(Boolean);
+    }
+    async function diagnose(err) {
+      if (!navigator.onLine) { alert("You're offline — connect and try again."); return; }
+      const missing = await missingFiles();
+      if (missing === null) alert("Couldn't reach the server. Check your connection and try again.");
+      else if (missing.length) alert(`These files are missing from the GitHub repo:\n\n${missing.join('\n')}\n\nUpload them (keep lib/ files inside a folder named lib), wait for Pages to redeploy, then reload.`);
+      else alert(`The update check failed, but every file is on the server.\n\nTry reloading the page. If it keeps happening: ${err && err.message ? err.message : err}`);
+    }
     async function check(manual) {
       if (!reg) { if (manual) toast('Updates work once the app is on GitHub Pages (https).'); return; }
-      try { await reg.update(); } catch (e) { if (manual) toast("Couldn't reach the server — try again when online."); return; }
+      try { await reg.update(); } catch (e) { if (manual) diagnose(e); return; }
       if (!manual) return;
       if (reg.waiting) offer(reg.waiting);
       else if (reg.installing) toast('Downloading update…');
-      else toast(`You're on the latest version (${$('#appVer').textContent}).`);
+      else {
+        const missing = await missingFiles().catch(() => null);
+        if (missing && missing.length) alert(`You're on the latest version, but these files are missing from the GitHub repo:\n\n${missing.join('\n')}\n\nSome features (like QR codes) won't work until they're uploaded. Keep lib/ files inside a folder named lib.`);
+        else toast(`You're on the latest version (${$('#appVer').textContent}).`);
+      }
     }
     $('#updCheck').onclick = () => check(true);
     $('#updNow').onclick = () => {
@@ -1012,14 +1030,14 @@ details.chron summary{cursor:pointer;font-weight:600;font-size:.92rem}
       if (reg.waiting && sw.controller) offer(reg.waiting);
       reg.addEventListener('updatefound', () => watch(reg.installing));
       const v = await askVersion(sw.controller || reg.active);
-      $('#appVer').textContent = v || '—';
+      $('#appVer').textContent = v || 'not installed yet — tap Check for updates';
       try {
         const last = localStorage.getItem(KEY + '-ver');
         if (v && last && last !== v) toast(`Updated to ${v}`);
         if (v) localStorage.setItem(KEY + '-ver', v);
       } catch (e) {}
       check(false);
-    }).catch(() => { $('#appVer').textContent = 'offline cache unavailable'; });
+    }).catch(e => { $('#appVer').textContent = 'offline install failed'; $('#updCheck').onclick = () => diagnose(e); });
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(false); });
     setInterval(() => check(false), 60 * 60 * 1000);
   }

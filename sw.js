@@ -3,18 +3,19 @@
 //  every time you upload changed files. That's what tells
 //  installed copies there's a new version to offer.
 // ============================================================
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = 'pfs-tracker-' + VERSION;
-const FILES = [
-  './', './index.html', './manifest.json', './catalog.js',
-  './lib/qrcode.js', './lib/jsQR.js',
-  './icon.svg', './icon-192.png', './icon-512.png'
-];
+const CORE = ['./', './index.html', './catalog.js'];   // app can't run without these
+const EXTRA = ['./manifest.json', './lib/qrcode.js', './lib/jsQR.js', './icon.svg', './icon-192.png', './icon-512.png'];
 
 // Download the new version in the background. It waits until the
 // person taps "Update" in the app (or on first install, starts right away).
+// A missing extra file (icon, QR library) doesn't block the install.
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))));
+  e.waitUntil(caches.open(CACHE).then(async c => {
+    await c.addAll(CORE.map(f => new Request(f, { cache: 'reload' })));
+    await Promise.all(EXTRA.map(f => fetch(new Request(f, { cache: 'reload' })).then(r => r.ok && c.put(f, r)).catch(() => {})));
+  }));
 });
 
 self.addEventListener('activate', e => {
