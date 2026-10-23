@@ -1,0 +1,1030 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PFS Tracker</title>
+<meta name="theme-color" content="#7a1f1f">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="catalog.js"></script>
+<script src="lib/qrcode.js" defer></script>
+<style>
+:root{
+  --bg:#f6f2ea; --card:#fffdf8; --ink:#231d17; --muted:#6f655a; --line:#e2d9ca;
+  --accent:#7a1f1f; --accent-ink:#fff; --ok:#2f6b3a; --okbg:#e3f1e5;
+  --warn:#8a5a00; --warnbg:#fbefd2; --bad:#9b1c1c; --badbg:#f8e0e0;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#16130f; --card:#211c17; --ink:#efe7da; --muted:#a69b8c; --line:#3a3229;
+    --accent:#c9504a; --accent-ink:#fff; --ok:#7cc48a; --okbg:#1d3022;
+    --warn:#e3b252; --warnbg:#382c14; --bad:#ef7b7b; --badbg:#3b1d1d;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{background:var(--accent);color:var(--accent-ink);padding:14px 16px 10px;padding-top:max(14px,env(safe-area-inset-top))}
+header h1{margin:0;font-size:1.2rem;letter-spacing:.02em}
+header p{margin:2px 0 0;font-size:.8rem;opacity:.85}
+nav{display:flex;position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line)}
+nav button{flex:1;border:0;background:none;color:var(--muted);padding:12px 2px;font:inherit;font-size:.85rem;border-bottom:3px solid transparent;cursor:pointer}
+nav button.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+main{max-width:760px;margin:0 auto;padding:16px 16px 96px}
+section{display:none} section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+h2{font-size:1.05rem;margin:4px 0 10px}
+h3{font-size:.95rem;margin:14px 0 6px}
+label{display:block;font-size:.8rem;color:var(--muted);margin:10px 0 4px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{min-height:70px;resize:vertical}
+.row{display:flex;gap:10px} .row>*{flex:1;min-width:0}
+.btn{display:inline-block;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:10px 14px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer;text-align:center}
+.btn.ghost{background:none;color:var(--accent)}
+.btn.small{padding:6px 10px;font-size:.85rem}
+.btn.danger{border-color:var(--bad);background:none;color:var(--bad)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.btnrow .btn{flex:1 1 140px}
+.fab{position:fixed;right:16px;bottom:max(16px,env(safe-area-inset-bottom));z-index:6;border-radius:999px;padding:14px 20px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.big{font-size:1.4rem;padding:14px;text-align:center;letter-spacing:.04em}
+.status{border-radius:12px;padding:14px;margin-top:12px;font-weight:600}
+.status small{display:block;font-weight:400;margin-top:4px}
+.s-ok{background:var(--okbg);color:var(--ok)} .s-warn{background:var(--warnbg);color:var(--warn)} .s-bad{background:var(--badbg);color:var(--bad)}
+.list{list-style:none;margin:0;padding:0}
+.item{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.item.tap{cursor:pointer}
+.item:first-child{border-top:0}
+.code{font-weight:700;min-width:58px;font-variant-numeric:tabular-nums}
+.meta{font-size:.82rem;color:var(--muted)}
+.tag{display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:999px;border:1px solid var(--line);margin-right:4px}
+.tag.gm{border-color:var(--warn);color:var(--warn)} .tag.pl{border-color:var(--ok);color:var(--ok)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:.8rem;padding:3px 8px;border-radius:6px;background:var(--bg);border:1px solid var(--line);cursor:pointer;color:var(--muted)}
+.chip.pl{background:var(--okbg);border-color:transparent;color:var(--ok)}
+.chip.gm{background:var(--warnbg);border-color:transparent;color:var(--warn)}
+.chip.both{background:var(--badbg);border-color:transparent;color:var(--bad)}
+details.season{border-top:1px solid var(--line);padding:8px 0}
+details.season:first-child{border-top:0}
+details.season summary{cursor:pointer;font-size:.92rem;list-style-position:outside}
+details.season summary .meta{margin-left:4px}
+details.season .chips{margin-top:8px}
+.empty{color:var(--muted);text-align:center;padding:20px 8px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{text-align:center;background:var(--bg);border-radius:8px;padding:10px 4px}
+.stat b{display:block;font-size:1.4rem}
+.stat span{font-size:.75rem;color:var(--muted)}
+dialog{border:0;border-radius:14px;padding:0;width:min(560px,calc(100vw - 24px));max-height:calc(100vh - 24px);background:var(--card);color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog form,dialog .pad{padding:16px}
+.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.actions .left{margin-right:auto}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg label{flex:1;margin:0;text-align:center;padding:9px;color:var(--ink);font-size:.9rem;cursor:pointer}
+.seg input{display:none}
+.seg label:has(input:checked){background:var(--accent);color:var(--accent-ink)}
+.check{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:.9rem;color:var(--ink)}
+.check input{width:auto}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:.9rem;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20;max-width:90vw}
+.toast.on{opacity:1}
+.hint{font-size:.82rem;color:var(--muted);margin-top:6px}
+.qrbox{background:#fff;border-radius:10px;padding:10px;margin:12px auto;width:min(280px,100%)}
+.qrbox svg{display:block;width:100%;height:auto}
+.scanwrap{position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:1/1;margin-top:8px}
+.scanwrap video{width:100%;height:100%;object-fit:cover;display:block}
+.scanwrap::after{content:"";position:absolute;inset:18%;border:3px solid rgba(255,255,255,.8);border-radius:12px}
+.x{border:0;background:none;color:var(--muted);font-size:1.3rem;line-height:1;cursor:pointer;padding:2px 6px}
+.count{font-weight:400;color:var(--muted);font-size:.85rem}
+.updbar{display:flex;gap:12px;align-items:center;border-color:var(--accent);background:var(--warnbg)}
+.updbar[hidden]{display:none}
+details.chron{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:12px}
+details.chron summary{cursor:pointer;font-weight:600;font-size:.92rem}
+.reprow{display:flex;gap:8px;margin-top:6px;align-items:center}
+.reprow input:first-child{flex:1;min-width:0}
+.reprow input[type=number]{flex:0 0 72px}
+.totals{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+.totals div{background:var(--bg);border-radius:8px;padding:8px 4px;text-align:center}
+.totals b{display:block;font-size:1.05rem}
+.totals span{font-size:.72rem;color:var(--muted)}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;background:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <h1>PFS Tracker</h1>
+  <p>Pathfinder Society scenario credit — for players and GMs</p>
+</header>
+<nav>
+  <button data-tab="check" class="on">Check</button>
+  <button data-tab="find">Find</button>
+  <button data-tab="log">Log</button>
+  <button data-tab="chars">Characters</button>
+  <button data-tab="data">Data</button>
+</nav>
+
+<main>
+  <div class="card updbar" id="updBar" hidden>
+    <div style="flex:1"><b>Update available</b><div class="meta" id="updText">A new version is ready. Your data stays put.</div></div>
+    <button class="btn small" id="updNow">Update</button>
+  </div>
+  <!-- CHECK -->
+  <section id="check" class="on">
+    <div class="card">
+      <h2>Have I played this?</h2>
+      <input id="checkInput" class="big" placeholder="e.g. 4-14, Intro 1" autocomplete="off" autocapitalize="characters" list="codeList">
+      <div id="checkResult"></div>
+    </div>
+    <div class="card">
+      <h2>At a glance</h2>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="card">
+      <h2>By season</h2>
+      <div id="seasons"></div>
+      <p class="hint"><span class="chip">not yet</span> <span class="chip pl">played</span> <span class="chip gm">GM'd</span> <span class="chip both">both</span></p>
+    </div>
+  </section>
+
+  <!-- FIND -->
+  <section id="find">
+    <div class="card">
+      <h2>What can I play?</h2>
+      <div class="row">
+        <div><label for="fChar">Character</label><select id="fChar"></select></div>
+        <div style="flex:0 0 26%"><label for="fLevel">Level</label><input id="fLevel" type="number" min="1" max="20" inputmode="numeric"></div>
+      </div>
+      <div class="row">
+        <div><label for="fSeason">Season</label><select id="fSeason" class="seasonSel"></select></div>
+      </div>
+      <label class="check"><input type="checkbox" id="fHideGm"> Hide ones I've GM'd</label>
+      <h3 id="fCount"></h3>
+      <ul class="list" id="fList"></ul>
+    </div>
+
+    <div class="card">
+      <h2>Table check</h2>
+      <p class="hint" style="margin-top:0">Collect everyone's played list, then see which scenarios nobody at the table has played.</p>
+      <div class="btnrow" style="margin-top:10px">
+        <button class="btn" id="scanBtn">Scan player</button>
+        <button class="btn ghost" id="addPlayerBtn">Add / paste</button>
+        <button class="btn ghost" id="shareBtn">Share my list</button>
+      </div>
+      <label class="check"><input type="checkbox" id="tMe" checked> Include me</label>
+      <ul class="list" id="tPlayers" style="margin-top:8px"></ul>
+      <div class="row">
+        <div style="flex:0 0 40%"><label for="tLevel">Party level</label><input id="tLevel" type="number" min="1" max="20" inputmode="numeric" placeholder="any"></div>
+        <div><label for="tSeason">Season</label><select id="tSeason" class="seasonSel"></select></div>
+      </div>
+      <h3 id="tCount"></h3>
+      <ul class="list" id="tFree"></ul>
+      <details id="tOneWrap" style="margin-top:10px"><summary class="meta" id="tOneSum"></summary><ul class="list" id="tOne"></ul></details>
+      <div class="actions" style="justify-content:flex-start"><button class="btn small danger" id="tClear">Clear table</button></div>
+    </div>
+  </section>
+
+  <!-- LOG -->
+  <section id="log">
+    <div class="card">
+      <div class="row">
+        <div><input id="logSearch" placeholder="Search code, title, notes"></div>
+        <div style="flex:0 0 120px">
+          <select id="logRole"><option value="">All roles</option><option value="player">Played</option><option value="gm">GM'd</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="card"><ul class="list" id="logList"></ul></div>
+  </section>
+
+  <!-- CHARACTERS -->
+  <section id="chars">
+    <div class="card">
+      <div class="row" style="align-items:center">
+        <h2 style="margin:0">Characters</h2>
+        <div style="flex:0 0 auto"><button class="btn small" id="addChar">+ Character</button></div>
+      </div>
+      <ul class="list" id="charList" style="margin-top:8px"></ul>
+    </div>
+  </section>
+
+  <!-- DATA -->
+  <section id="data">
+    <div class="card">
+      <h2>You</h2>
+      <label for="myName">Name shown to other players</label>
+      <input id="myName" placeholder="e.g. Jinx">
+      <label for="opId">Organized Play ID</label>
+      <input id="opId" placeholder="Your Paizo Organized Play number" inputmode="numeric">
+      <p class="hint">Character numbers are added per character (e.g. 2001).</p>
+    </div>
+    <div class="card">
+      <h2>Backup</h2>
+      <p class="hint">Everything is stored only on this device. Export a backup now and then, and use it to move to another phone or computer.</p>
+      <div class="actions" style="justify-content:flex-start">
+        <button class="btn" id="exportBtn">Export JSON</button>
+        <button class="btn ghost" id="exportCsv">Export CSV</button>
+        <label class="btn ghost" style="margin:0;color:var(--accent);font-size:1rem">Import JSON<input type="file" id="importFile" accept="application/json,.json" hidden></label>
+      </div>
+    </div>
+    <div class="card">
+      <h2>App</h2>
+      <p class="hint" style="margin-top:0">Version <b id="appVer">…</b> · checks for updates automatically when opened</p>
+      <button class="btn small ghost" id="updCheck">Check for updates</button>
+      <h3>Scenario catalog</h3>
+      <p class="hint" id="catInfo"></p>
+    </div>
+    <div class="card">
+      <h2>Danger zone</h2>
+      <button class="btn danger" id="wipeBtn">Erase all data</button>
+    </div>
+  </section>
+</main>
+
+<datalist id="codeList"></datalist>
+<datalist id="factionList">
+  <option value="Envoys' Alliance"><option value="Grand Archive"><option value="Horizon Hunters">
+  <option value="Radiant Oath"><option value="Verdant Wheel"><option value="Vigilant Seal">
+</datalist>
+<button class="btn fab" id="addSession">+ Log session</button>
+
+<!-- Session dialog -->
+<dialog id="sessionDlg">
+  <form method="dialog" id="sessionForm">
+    <h2 id="sessionTitle">Log session</h2>
+    <div class="row">
+      <div style="flex:0 0 38%">
+        <label for="sType">Type</label>
+        <select id="sType">
+          <option>Scenario</option><option>Quest</option><option>Bounty</option>
+          <option>Adventure</option><option>Special</option><option>Other</option>
+        </select>
+      </div>
+      <div>
+        <label for="sCode">Number</label>
+        <input id="sCode" placeholder="4-14" required autocomplete="off" autocapitalize="characters" list="codeList">
+      </div>
+    </div>
+    <label for="sName">Title</label>
+    <input id="sName" placeholder="Scenario title" list="titleList" autocomplete="off">
+    <datalist id="titleList"></datalist>
+    <div id="dupWarn"></div>
+    <label>Role</label>
+    <div class="seg">
+      <label><input type="radio" name="sRole" value="player" checked>Played</label>
+      <label><input type="radio" name="sRole" value="gm">GM'd</label>
+    </div>
+    <div class="row">
+      <div><label for="sDate">Date</label><input id="sDate" type="date" required></div>
+      <div><label for="sChar">Credit to</label><select id="sChar"></select></div>
+    </div>
+    <label for="sEvent">Event / venue</label><input id="sEvent" placeholder="Game store, convention, online">
+    <details class="chron" id="sChron">
+      <summary>Chronicle sheet <span class="meta" id="sChronSum"></span></summary>
+      <div class="row">
+        <div><label for="sXp">XP</label><input id="sXp" type="number" min="0" step="0.5" inputmode="decimal" placeholder="4"></div>
+        <div><label for="sAcp">AcP</label><input id="sAcp" type="number" min="0" step="1" inputmode="numeric" placeholder="4"></div>
+      </div>
+      <div class="row">
+        <div><label for="sGold">Gold earned</label><input id="sGold" type="number" min="0" step="0.01" inputmode="decimal" placeholder="gp"></div>
+        <div><label for="sSpent">Gold spent</label><input id="sSpent" type="number" min="0" step="0.01" inputmode="decimal" placeholder="gp"></div>
+      </div>
+      <label>Reputation</label>
+      <div id="sRep"></div>
+      <button type="button" class="btn small ghost" id="sRepAdd" style="margin-top:6px">+ Faction</button>
+      <label for="sItems">Items, boons &amp; purchases</label>
+      <textarea id="sItems" placeholder="Unlocked: +1 striking longbow · Bought: 2 healing potions"></textarea>
+      <p class="hint" id="sDowntime"></p>
+    </details>
+    <label class="check"><input type="checkbox" id="sRepeat"> Repeatable (no replay warning)</label>
+    <label for="sNotes">Notes</label>
+    <textarea id="sNotes" placeholder="Boons, notable moments, who was at the table"></textarea>
+    <div class="actions">
+      <button type="button" class="btn danger left" id="sDelete">Delete</button>
+      <button type="button" class="btn ghost" id="sCancel">Cancel</button>
+      <button type="submit" class="btn">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Character dialog -->
+<dialog id="charDlg">
+  <form method="dialog" id="charForm">
+    <h2 id="charTitle">Character</h2>
+    <label for="cName">Name</label>
+    <input id="cName" required>
+    <div class="row">
+      <div><label for="cClass">Ancestry / class</label><input id="cClass" placeholder="Orc Ranger"></div>
+      <div style="flex:0 0 28%"><label for="cNum">Char #</label><input id="cNum" inputmode="numeric" placeholder="2001"></div>
+    </div>
+    <div class="row">
+      <div style="flex:0 0 40%"><label for="cLevel">Level</label><input id="cLevel" type="number" min="1" max="20" value="1"></div>
+      <div><label for="cFaction">Faction</label><input id="cFaction" placeholder="optional" list="factionList"></div>
+    </div>
+    <details class="chron" id="cStartWrap">
+      <summary>Before tracking <span class="meta">— carry over an existing sheet</span></summary>
+      <div class="row">
+        <div><label for="cStartXp">XP</label><input id="cStartXp" type="number" min="0" step="0.5" inputmode="decimal" placeholder="0"></div>
+        <div><label for="cStartGold">Gold</label><input id="cStartGold" type="number" step="0.01" inputmode="decimal" placeholder="15"></div>
+        <div><label for="cStartAcp">AcP</label><input id="cStartAcp" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></div>
+      </div>
+      <label for="cStartRep">Reputation</label>
+      <input id="cStartRep" placeholder="e.g. Horizon Hunters 8, Verdant Wheel 2">
+      <p class="hint">New characters start with 15 gp. Totals below add every logged chronicle to these.</p>
+    </details>
+    <div id="cSummary"></div>
+    <label class="check"><input type="checkbox" id="cRetired"> Retired</label>
+    <div class="actions">
+      <button type="button" class="btn danger left" id="cDelete">Delete</button>
+      <button type="button" class="btn ghost" id="cCancel">Cancel</button>
+      <button type="submit" class="btn">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Share dialog -->
+<dialog id="shareDlg">
+  <div class="pad">
+    <h2>Share my played list</h2>
+    <label for="shareName">Your name</label>
+    <input id="shareName" placeholder="e.g. Jinx">
+    <div class="qrbox" id="qrBox"></div>
+    <p class="hint" id="shareInfo" style="text-align:center"></p>
+    <div class="actions">
+      <button type="button" class="btn ghost" id="shareCopy">Copy link</button>
+      <button type="button" class="btn ghost" id="shareNative" hidden>Share…</button>
+      <button type="button" class="btn" id="shareClose">Done</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Scan dialog -->
+<dialog id="scanDlg">
+  <div class="pad">
+    <h2>Scan a player's code</h2>
+    <p class="hint" style="margin-top:0">Have them open <b>Find → Share my list</b>.</p>
+    <div class="scanwrap"><video id="scanVideo" playsinline muted></video></div>
+    <p class="hint" id="scanMsg"></p>
+    <div class="actions"><button type="button" class="btn ghost" id="scanClose">Cancel</button></div>
+  </div>
+</dialog>
+
+<!-- Add player dialog -->
+<dialog id="playerDlg">
+  <form method="dialog" id="playerForm">
+    <h2>Add a player</h2>
+    <label for="pText">Share link, or the scenarios they've played</label>
+    <textarea id="pText" placeholder="Paste a PFS Tracker link, or type codes like 1-01, 2-05, 4-14"></textarea>
+    <label for="pName">Name</label>
+    <input id="pName" placeholder="Filled in automatically from a share link">
+    <p class="hint" id="pPreview"></p>
+    <div class="actions">
+      <button type="button" class="btn ghost" id="pCancel">Cancel</button>
+      <button type="submit" class="btn">Add</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const KEY = 'pfs-tracker-v1';
+  const $ = s => document.querySelector(s);
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+  const pad2 = n => String(n).padStart(2, '0');
+
+  // ---------- code normalization ----------
+  // "#4-14", "4-014", "pfs 4-14" -> "4-14"; "1-1" -> "1-01"; "intro 1" -> "INTRO1"; "q 12" -> "Q12"
+  function norm(code) {
+    let c = String(code || '').toUpperCase().replace(/PFS2?|SCENARIO|#|\s/g, '');
+    let m = c.match(/^(\d+)[-–.](\d+)$/);
+    if (m) return `${+m[1]}-${pad2(+m[2])}`;
+    m = c.match(/^([A-Z]+)0*(\d+)$/);
+    if (m) return `${m[1]}${+m[2]}`;
+    return c;
+  }
+  const seasonOf = key => { const m = String(key).match(/^(\d+)-(\d+)$/); return m ? +m[1] : null; };
+  const numOf = key => { const m = String(key).match(/-(\d+)$/); return m ? +m[1] : 0; };
+
+  // ---------- catalog ----------
+  const SEASONS = window.PFS_SEASONS || {};
+  const CAT = new Map();
+  (window.PFS_CATALOG || []).forEach(([code, title, lmin, lmax]) => CAT.set(norm(code), { key: norm(code), code, title, lmin, lmax, season: seasonOf(norm(code)) }));
+  const CATLIST = [...CAT.values()];
+  const disp = key => (CAT.get(key) || {}).code || key;
+  const lvls = c => c && c.lmin != null ? `levels ${c.lmin}–${c.lmax}` : '';
+  const fitsLevel = (c, L) => !L || c.lmin == null || (L >= c.lmin && L <= c.lmax);
+  const seasonNums = [...new Set(CATLIST.map(c => c.season).filter(s => s !== null))].sort((a, b) => b - a);
+  const seasonLabel = s => `Season ${s}${SEASONS[s] ? ' · ' + SEASONS[s] : ''}`;
+
+  // ---------- storage ----------
+  const blank = () => ({ version: 2, opId: '', myName: '', characters: [], sessions: [], table: [], tableIncludeMe: true });
+  let db = blank();
+  try { const raw = localStorage.getItem(KEY); if (raw) db = Object.assign(blank(), JSON.parse(raw)); } catch (e) {}
+  function migrate() {
+    db.sessions.forEach(s => { s.key = norm(s.key); });
+    if (!Array.isArray(db.table)) db.table = [];
+    db.table.forEach(p => { p.played = (p.played || []).map(norm); });
+  }
+  migrate();
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { toast('Could not save on this device'); } };
+  const charName = id => (db.characters.find(c => c.id === id) || {}).name || '—';
+
+  // ---------- chronicle math ----------
+  const XP_PER_LEVEL = 12, START_GOLD = 15;
+  const num = v => (v === '' || v == null || isNaN(+v)) ? 0 : +v;
+  const gp = n => (Math.round(n * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const fmtN = n => String(Math.round(n * 100) / 100);
+  function parseRep(text) { // "Horizon Hunters 8, Verdant Wheel 2"
+    const out = {};
+    String(text || '').split(/[,;\n]/).forEach(p => {
+      const m = p.trim().match(/^(.*?)[\s:]+(-?\d+(?:\.\d+)?)$/);
+      if (m && m[1].trim()) out[m[1].trim()] = (out[m[1].trim()] || 0) + +m[2];
+    });
+    return out;
+  }
+  function charTotals(c) {
+    const ss = db.sessions.filter(s => s.charId === c.id);
+    const t = { xp: num(c.startXp), gold: (c.startGold === '' || c.startGold == null) ? START_GOLD : num(c.startGold), acp: num(c.startAcp), rep: parseRep(c.startRep) };
+    ss.forEach(s => {
+      t.xp += num(s.xp); t.gold += num(s.gold) - num(s.spent); t.acp += num(s.acp);
+      (s.rep || []).forEach(r => { if (r.f) t.rep[r.f] = (t.rep[r.f] || 0) + num(r.n); });
+    });
+    t.level = Math.min(20, 1 + Math.floor(t.xp / XP_PER_LEVEL));
+    t.into = t.xp - (t.level - 1) * XP_PER_LEVEL;
+    t.played = ss.filter(s => s.role === 'player').length; t.gm = ss.length - t.played;
+    return t;
+  }
+  // Raise the character's level when logged XP says they've leveled. Never lowers it.
+  function syncLevel(c) {
+    if (!c) return null;
+    const t = charTotals(c);
+    if (t.xp > 0 && t.level > (+c.level || 1)) { c.level = t.level; return `${c.name} reached level ${t.level}!`; }
+    return null;
+  }
+  const repText = rep => Object.entries(rep).filter(([, n]) => n).sort((a, b) => b[1] - a[1]).map(([f, n]) => `${f} ${fmtN(n)}`).join(' · ');
+  function totalsHTML(c) {
+    const t = charTotals(c);
+    const pct = t.level >= 20 ? 100 : Math.min(100, t.into / XP_PER_LEVEL * 100);
+    const behind = (+c.level || 1) > t.level;
+    return `<div class="totals"><div><b>${fmtN(t.xp)}</b><span>XP</span></div><div><b>${gp(t.gold)}</b><span>gp</span></div><div><b>${t.acp}</b><span>AcP</span></div></div>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <div class="meta">${behind ? `Logged XP says level ${t.level} — add their earlier XP under “Before tracking”.` : t.level >= 20 ? 'Level 20' : `Level ${t.level} · ${fmtN(XP_PER_LEVEL - t.into)} XP to level ${t.level + 1}`}</div>
+      ${repText(t.rep) ? `<div class="meta">Reputation: ${esc(repText(t.rep))}</div>` : ''}`;
+  }
+
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2400); }
+
+  // ---------- static UI fill ----------
+  $('#codeList').innerHTML = CATLIST.map(c => `<option value="${esc(c.code)}">${esc(c.title)}</option>`).join('');
+  document.querySelectorAll('.seasonSel').forEach(sel => {
+    sel.innerHTML = `<option value="">All seasons</option>` + seasonNums.map(s => `<option value="${s}">${esc(seasonLabel(s))}</option>`).join('');
+  });
+  $('#catInfo').textContent = `${CATLIST.length} scenarios through Season ${seasonNums[0] || '?'}, updated ${window.PFS_CATALOG_UPDATED || '?'}. Quests, bounties and newer releases can still be logged by number — they just won't have titles filled in.`;
+
+  // ---------- tabs ----------
+  document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('main section').forEach(s => s.classList.toggle('on', s.id === b.dataset.tab));
+    render();
+  });
+
+  // ---------- status ----------
+  function statusFor(code) {
+    const key = norm(code);
+    const hits = db.sessions.filter(s => s.key === key);
+    return { key, hits, played: hits.filter(s => s.role === 'player'), gmd: hits.filter(s => s.role === 'gm'), repeatable: hits.some(s => s.repeatable) };
+  }
+  const myPlayedSet = () => new Set(db.sessions.filter(s => s.role === 'player' && !s.repeatable).map(s => s.key));
+  const myGmSet = () => new Set(db.sessions.filter(s => s.role === 'gm').map(s => s.key));
+
+  function statusHTML(code) {
+    if (!norm(code)) return '';
+    const st = statusFor(code);
+    const cat = CAT.get(st.key);
+    const title = cat ? cat.title : (st.hits.find(h => h.title) || {}).title;
+    const head = `${esc(disp(st.key))}${title ? ' — ' + esc(title) : ''}`;
+    const lv = cat && cat.lmin != null ? `<br>${esc(lvls(cat))}` : '';
+    const line = h => `${h.role === 'gm' ? "GM'd" : 'Played'} ${esc(h.date)} · credit: ${esc(charName(h.charId))}`;
+    if (!st.hits.length) {
+      const extra = cat ? '' : '<br>Not in the scenario catalog — double-check the number.';
+      return `<div class="status s-ok">${head}<small>Not played or run yet.${lv}${extra}</small></div>`;
+    }
+    const detail = st.hits.slice().sort((a, b) => b.date.localeCompare(a.date)).map(line).join('<br>') + lv;
+    if (st.repeatable) return `<div class="status s-ok">${head} · repeatable<small>${detail}</small></div>`;
+    if (st.played.length) return `<div class="status s-bad">${head} · already played<small>${detail}</small></div>`;
+    return `<div class="status s-warn">${head} · GM'd, not played<small>${detail}</small></div>`;
+  }
+
+  const scenRow = (c, extra = '') => `<li class="item"><div class="code">${esc(c.code)}</div><div style="flex:1;min-width:0"><div>${esc(c.title)}</div><div class="meta">${esc(lvls(c))}${extra}</div></div></li>`;
+  const LIMIT = 15, expanded = {};
+  const capped = (id, rows) => rows.length <= LIMIT || expanded[id] ? rows.join('')
+    : rows.slice(0, LIMIT).join('') + `<li class="item" style="justify-content:center"><button class="btn small ghost" data-more="${id}">Show all ${rows.length}</button></li>`;
+  document.addEventListener('click', e => { const b = e.target.closest('[data-more]'); if (b) { expanded[b.dataset.more] = true; render(); } });
+  const sortScen =(a, b) => (b.season ?? -1) - (a.season ?? -1) || numOf(a.key) - numOf(b.key) || a.key.localeCompare(b.key);
+
+  // ---------- render ----------
+  function render() {
+    const pl = myPlayedSet(), gm = myGmSet();
+    const keys = new Set(db.sessions.map(s => s.key));
+
+    // stats
+    const gmCount = db.sessions.filter(s => s.role === 'gm').length;
+    $('#stats').innerHTML = [[db.sessions.length - gmCount, 'Played'], [gmCount, "GM'd"], [keys.size, 'Unique']].map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+
+    // by season: full catalog per season, plus anything logged that's not in the catalog
+    const chipCls = k => { const p = pl.has(k) || db.sessions.some(s => s.key === k && s.role === 'player'), g = gm.has(k); return p && g ? 'both' : p ? 'pl' : g ? 'gm' : ''; };
+    const groups = seasonNums.map(s => ({ label: seasonLabel(s), items: CATLIST.filter(c => c.season === s).map(c => c.key) }));
+    const intros = CATLIST.filter(c => c.season === null).map(c => c.key);
+    if (intros.length) groups.push({ label: 'Intros & specials', items: intros });
+    const extra = [...keys].filter(k => !CAT.has(k)).sort((a, b) => (seasonOf(b) ?? -1) - (seasonOf(a) ?? -1) || numOf(a) - numOf(b) || a.localeCompare(b));
+    if (extra.length) groups.push({ label: 'Other logged (quests, bounties, newer)', items: extra });
+    $('#seasons').innerHTML = groups.map(g => {
+      const done = g.items.filter(k => keys.has(k)).length;
+      return `<details class="season"${done ? ' open' : ''}><summary>${esc(g.label)} <span class="meta">${done}/${g.items.length}</span></summary>
+        <div class="chips">${g.items.map(k => `<span class="chip ${chipCls(k)}" data-code="${esc(k)}" title="${esc((CAT.get(k) || {}).title || '')}">${esc(disp(k))}</span>`).join('')}</div></details>`;
+    }).join('');
+
+    renderFind(pl, gm);
+    renderTable(pl);
+
+    // log
+    const q = $('#logSearch').value.trim().toLowerCase();
+    const role = $('#logRole').value;
+    const list = db.sessions
+      .filter(s => !role || s.role === role)
+      .filter(s => !q || [disp(s.key), s.title, s.notes, s.event, charName(s.charId)].join(' ').toLowerCase().includes(q))
+      .sort((a, b) => b.date.localeCompare(a.date) || b.created - a.created);
+    $('#logList').innerHTML = list.length ? list.map(s => `
+      <li class="item tap" data-sid="${s.id}">
+        <div class="code">${esc(disp(s.key))}</div>
+        <div style="flex:1;min-width:0">
+          <div>${esc(s.title || (CAT.get(s.key) || {}).title || s.type)}</div>
+          <div class="meta"><span class="tag ${s.role === 'gm' ? 'gm' : 'pl'}">${s.role === 'gm' ? 'GM' : 'Player'}</span>${esc(s.date)} · ${esc(charName(s.charId))}${s.xp ? ' · ' + esc(s.xp) + ' XP' : ''}${num(s.gold) - num(s.spent) ? ' · ' + (num(s.gold) - num(s.spent) > 0 ? '+' : '') + gp(num(s.gold) - num(s.spent)) + ' gp' : ''}${s.event ? ' · ' + esc(s.event) : ''}</div>
+        </div>
+      </li>`).join('') : `<li class="empty">${db.sessions.length ? 'No sessions match.' : 'Nothing logged yet. Tap “+ Log session” to start.'}</li>`;
+
+    // characters
+    $('#charList').innerHTML = db.characters.length ? db.characters.slice().sort((a, b) => (a.retired - b.retired) || a.name.localeCompare(b.name)).map(c => {
+      const t = charTotals(c);
+      const pid = db.opId && c.num ? `${esc(db.opId)}-${esc(c.num)}` : (c.num ? '#' + esc(c.num) : '');
+      return `<li class="item tap" data-cid="${c.id}">
+        <div style="flex:1;min-width:0">
+          <div><b>${esc(c.name)}</b>${c.retired ? ' <span class="tag">retired</span>' : ''}</div>
+          <div class="meta">${[esc(c.cls), 'Level ' + esc(c.level), esc(c.faction), pid].filter(Boolean).join(' · ')}</div>
+          <div class="meta">${t.played} played · ${t.gm} GM credit</div>
+          ${totalsHTML(c)}
+        </div></li>`;
+    }).join('') : `<li class="empty">Add a character so sessions can be credited to them.</li>`;
+
+    $('#opId').value = db.opId || '';
+    $('#myName').value = db.myName || '';
+    $('#checkResult').innerHTML = statusHTML($('#checkInput').value);
+  }
+
+  // ---------- find: what can I play ----------
+  function fillFindChars() {
+    const sel = $('#fChar'), cur = sel.value;
+    const active = db.characters.filter(c => !c.retired);
+    sel.innerHTML = `<option value="">Any character</option>` + active.map(c => `<option value="${c.id}">${esc(c.name)} (L${esc(c.level)})</option>`).join('');
+    if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+    else if (active.length === 1) { sel.value = active[0].id; $('#fLevel').value = active[0].level; }
+  }
+  function renderFind(pl, gm) {
+    fillFindChars();
+    const L = +$('#fLevel').value || 0, S = $('#fSeason').value, hideGm = $('#fHideGm').checked;
+    const res = CATLIST.filter(c => !pl.has(c.key) && fitsLevel(c, L) && (!S || String(c.season) === S) && !(hideGm && gm.has(c.key))).sort(sortScen);
+    $('#fCount').innerHTML = `${res.length} unplayed <span class="count">${L ? 'for level ' + L : 'at any level'}</span>`;
+    $('#fList').innerHTML = res.length ? capped('f', res.map(c => scenRow(c, gm.has(c.key) ? ' · <span class="tag gm">GM\'d</span>' : ''))) : `<li class="empty">Nothing left at this level — impressive.</li>`;
+  }
+  $('#fChar').addEventListener('change', () => { const c = db.characters.find(x => x.id === $('#fChar').value); if (c) $('#fLevel').value = c.level; render(); });
+  ['#fLevel', '#fSeason', '#fHideGm'].forEach(s => $(s).addEventListener(s === '#fLevel' ? 'input' : 'change', render));
+
+  // ---------- table check ----------
+  function renderTable(pl) {
+    $('#tMe').checked = db.tableIncludeMe !== false;
+    const players = [];
+    if (db.tableIncludeMe !== false) players.push({ name: (db.myName || 'Me') + ' (you)', set: pl, me: true });
+    db.table.forEach(p => players.push({ id: p.id, name: p.name, set: new Set(p.played) }));
+
+    $('#tPlayers').innerHTML = players.length ? players.map(p => `
+      <li class="item"><div style="flex:1"><b>${esc(p.name)}</b><div class="meta">${p.set.size} scenario${p.set.size === 1 ? '' : 's'} played</div></div>
+      ${p.me ? '' : `<button class="x" data-rm="${p.id}" aria-label="Remove ${esc(p.name)}">×</button>`}</li>`).join('')
+      : `<li class="empty">No players yet — scan or paste their codes.</li>`;
+
+    const L = +$('#tLevel').value || 0, S = $('#tSeason').value;
+    const pool = CATLIST.filter(c => fitsLevel(c, L) && (!S || String(c.season) === S)).sort(sortScen);
+    const free = [], one = [];
+    pool.forEach(c => {
+      const who = players.filter(p => p.set.has(c.key)).map(p => p.name);
+      if (!who.length) free.push(c); else if (who.length === 1) one.push([c, who[0]]);
+    });
+    if (!players.length) { $('#tCount').textContent = ''; $('#tFree').innerHTML = ''; $('#tOneWrap').hidden = true; return; }
+    $('#tCount').innerHTML = `${free.length} nobody has played <span class="count">${L ? 'at level ' + L : 'at any level'} · ${players.length} player${players.length === 1 ? '' : 's'}</span>`;
+    $('#tFree').innerHTML = free.length ? capped('t', free.map(c => scenRow(c))) : `<li class="empty">Every option has been played by someone. Check the list below.</li>`;
+    $('#tOneWrap').hidden = !one.length || players.length < 2;
+    $('#tOneSum').textContent = `${one.length} played by just one person`;
+    $('#tOne').innerHTML = capped('o', one.map(([c, n]) => scenRow(c, ` · played by <b>${esc(n)}</b>`)));
+  }
+  $('#tMe').addEventListener('change', e => { db.tableIncludeMe = e.target.checked; save(); render(); });
+  $('#tLevel').addEventListener('input', render);
+  $('#tSeason').addEventListener('change', render);
+  $('#tPlayers').addEventListener('click', e => {
+    const b = e.target.closest('[data-rm]'); if (!b) return;
+    db.table = db.table.filter(p => p.id !== b.dataset.rm); save(); render();
+  });
+  $('#tClear').onclick = () => { if (db.table.length && confirm('Remove everyone from the table?')) { db.table = []; save(); render(); } };
+
+  function addPlayer(name, played) {
+    name = (name || '').trim() || `Player ${db.table.length + 1}`;
+    const existing = db.table.find(p => p.name.toLowerCase() === name.toLowerCase());
+    if (existing) { existing.played = played; toast(`Updated ${name}`); }
+    else { db.table.push({ id: uid(), name, played }); toast(`Added ${name} · ${played.length} played`); }
+    save(); render();
+  }
+
+  // share format: base#t=<encoded "v1~Name~4:14.16|1:1.2|INTRO1">
+  function buildShare(name) {
+    const keys = [...myPlayedSet()];
+    const bySeason = {}, other = [];
+    keys.forEach(k => { const s = seasonOf(k); if (s === null) other.push(k); else (bySeason[s] = bySeason[s] || []).push(numOf(k)); });
+    const groups = Object.keys(bySeason).sort((a, b) => a - b).map(s => `${s}:${bySeason[s].sort((a, b) => a - b).join('.')}`).concat(other.sort());
+    const payload = `v1~${String(name || '').replace(/[~|#]/g, '').trim()}~${groups.join('|')}`;
+    return { url: location.origin + location.pathname + '#t=' + encodeURIComponent(payload), count: keys.length };
+  }
+  function parseShare(text) {
+    text = String(text || '').trim();
+    const i = text.indexOf('#t=');
+    let p = i >= 0 ? text.slice(i + 3) : text;
+    try { p = decodeURIComponent(p); } catch (e) {}
+    const parts = p.split('~');
+    if (parts[0] !== 'v1' || parts.length < 3) return null;
+    const played = [];
+    parts.slice(2).join('~').split('|').filter(Boolean).forEach(g => {
+      const m = g.match(/^(\d+):(.*)$/);
+      if (m) m[2].split('.').filter(Boolean).forEach(n => played.push(`${+m[1]}-${pad2(+n)}`));
+      else played.push(norm(g));
+    });
+    return { name: parts[1], played: [...new Set(played)] };
+  }
+  const parseCodes = text => [...new Set(String(text || '').split(/[,;\n]+|\s{2,}/).map(norm).filter(k => k && /\d/.test(k)))];
+
+  // share dialog
+  const shareDlg = $('#shareDlg');
+  function drawShare() {
+    const { url, count } = buildShare($('#shareName').value);
+    shareDlg._url = url;
+    if (window.qrcode) {
+      const q = qrcode(0, 'L'); q.addData(url); q.make();
+      $('#qrBox').innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    } else $('#qrBox').innerHTML = '<p class="empty" style="color:#555">QR library didn’t load — use Copy link.</p>';
+    $('#shareInfo').textContent = `${count} scenario${count === 1 ? '' : 's'} played · GM credit isn't included`;
+  }
+  $('#shareBtn').onclick = () => {
+    $('#shareName').value = db.myName || '';
+    $('#shareNative').hidden = !navigator.share;
+    drawShare(); shareDlg.showModal();
+  };
+  $('#shareName').addEventListener('input', () => { db.myName = $('#shareName').value.trim(); save(); drawShare(); });
+  $('#shareClose').onclick = () => { shareDlg.close(); render(); };
+  $('#shareCopy').onclick = async () => {
+    try { await navigator.clipboard.writeText(shareDlg._url); toast('Link copied'); }
+    catch (e) { prompt('Copy this link:', shareDlg._url); }
+  };
+  $('#shareNative').onclick = () => navigator.share({ title: 'My PFS played list', url: shareDlg._url }).catch(() => {});
+
+  // add / paste dialog
+  const playerDlg = $('#playerDlg');
+  function previewPlayer() {
+    const t = $('#pText').value, sh = parseShare(t);
+    if (sh) { if (!$('#pName').value || $('#pName').dataset.auto) { $('#pName').value = sh.name; $('#pName').dataset.auto = '1'; } $('#pPreview').textContent = `Share link: ${sh.played.length} scenarios played.`; return sh.played; }
+    const codes = parseCodes(t);
+    $('#pPreview').textContent = codes.length ? `${codes.length} scenario${codes.length === 1 ? '' : 's'}: ${codes.map(disp).join(', ')}` : '';
+    return codes;
+  }
+  $('#addPlayerBtn').onclick = () => { $('#pText').value = ''; $('#pName').value = ''; delete $('#pName').dataset.auto; $('#pPreview').textContent = ''; playerDlg.showModal(); };
+  $('#pText').addEventListener('input', previewPlayer);
+  $('#pName').addEventListener('input', () => delete $('#pName').dataset.auto);
+  $('#pCancel').onclick = () => playerDlg.close();
+  $('#playerForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const played = previewPlayer();
+    if (!$('#pName').value.trim() && !played.length) return;
+    addPlayer($('#pName').value, played); playerDlg.close();
+  });
+
+  // scan dialog
+  const scanDlg = $('#scanDlg');
+  let stream = null, scanning = false;
+  function loadJsQR() {
+    if (window.jsQR) return Promise.resolve();
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'lib/jsQR.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  }
+  function stopScan() { scanning = false; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; }
+  async function startScan() {
+    $('#scanMsg').textContent = 'Starting camera…';
+    scanDlg.showModal();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('#scanMsg').textContent = 'No camera access here. Use “Add / paste” with their link instead.'; return; }
+    let det = null;
+    try { if ('BarcodeDetector' in window && (await BarcodeDetector.getSupportedFormats()).includes('qr_code')) det = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) {}
+    try {
+      if (!det) await loadJsQR();
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    } catch (e) { $('#scanMsg').textContent = 'Camera unavailable or permission denied. Use “Add / paste” instead.'; return; }
+    const v = $('#scanVideo'); v.srcObject = stream; await v.play().catch(() => {});
+    $('#scanMsg').textContent = 'Point at the QR code.';
+    scanning = true;
+    const cv = document.createElement('canvas'), ctx = cv.getContext('2d', { willReadFrequently: true });
+    const tick = async () => {
+      if (!scanning) return;
+      if (v.readyState >= 2 && v.videoWidth) {
+        let text = null;
+        try {
+          if (det) { const r = await det.detect(v); if (r.length) text = r[0].rawValue; }
+          else {
+            const w = Math.min(v.videoWidth, 720), h = Math.round(v.videoHeight * w / v.videoWidth);
+            cv.width = w; cv.height = h; ctx.drawImage(v, 0, 0, w, h);
+            const img = ctx.getImageData(0, 0, w, h); const r = jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' });
+            if (r) text = r.data;
+          }
+        } catch (e) { if (det) { det = null; await loadJsQR().catch(() => {}); } }
+        if (text) {
+          const sh = parseShare(text);
+          if (sh) { stopScan(); scanDlg.close(); addPlayer(sh.name, sh.played); return; }
+          $('#scanMsg').textContent = "That QR code isn't a PFS Tracker list.";
+        }
+      }
+      setTimeout(() => requestAnimationFrame(tick), 120);
+    };
+    tick();
+  }
+  $('#scanBtn').onclick = startScan;
+  $('#scanClose').onclick = () => { stopScan(); scanDlg.close(); };
+  scanDlg.addEventListener('close', stopScan);
+
+  // ---------- check tab events ----------
+  $('#checkInput').addEventListener('input', () => { $('#checkResult').innerHTML = statusHTML($('#checkInput').value); });
+  $('#seasons').addEventListener('click', e => {
+    const c = e.target.closest('[data-code]'); if (!c) return;
+    $('#checkInput').value = disp(c.dataset.code); $('#checkResult').innerHTML = statusHTML(c.dataset.code);
+    $('#checkInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  $('#logSearch').addEventListener('input', render);
+  $('#logRole').addEventListener('change', render);
+  $('#opId').addEventListener('change', e => { db.opId = e.target.value.trim(); save(); render(); });
+  $('#myName').addEventListener('change', e => { db.myName = e.target.value.trim(); save(); render(); });
+
+  // ---------- session dialog ----------
+  const sDlg = $('#sessionDlg');
+  let editingS = null;
+  function fillCharSelect(sel) {
+    const opts = db.characters.filter(c => !c.retired || c.id === sel).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    $('#sChar').innerHTML = `<option value="">— none / unassigned —</option>` + opts;
+    $('#sChar').value = sel || '';
+  }
+  function updateDup() {
+    const code = $('#sCode').value;
+    if (!norm(code)) { $('#dupWarn').innerHTML = ''; return; }
+    const st = statusFor(code);
+    const others = st.hits.filter(h => !editingS || h.id !== editingS.id);
+    const cat = CAT.get(st.key);
+    if (!$('#sName').value || $('#sName').dataset.auto) {
+      const t = cat ? cat.title : (others.find(h => h.title) || {}).title;
+      $('#sName').value = t || ''; if (t) $('#sName').dataset.auto = '1'; else delete $('#sName').dataset.auto;
+    }
+    const role = document.querySelector('input[name=sRole]:checked').value;
+    if (others.some(h => h.repeatable)) $('#sRepeat').checked = true;
+    const lv = cat && cat.lmin != null ? ` · ${esc(lvls(cat))}` : '';
+    if (role === 'player' && !$('#sRepeat').checked && others.some(h => h.role === 'player'))
+      $('#dupWarn').innerHTML = `<div class="status s-bad" style="margin-top:10px">Already played ${esc(disp(st.key))}<small>${others.filter(h => h.role === 'player').map(h => esc(h.date) + ' · ' + esc(charName(h.charId))).join('<br>')}</small></div>`;
+    else if (others.length) $('#dupWarn').innerHTML = `<p class="hint">${others.length} earlier record(s) for ${esc(disp(st.key))}${lv}.</p>`;
+    else $('#dupWarn').innerHTML = lv ? `<p class="hint">${esc(disp(st.key))}${lv}</p>` : '';
+  }
+  // chronicle section
+  function repRow(f = '', n = '') {
+    const d = document.createElement('div'); d.className = 'reprow';
+    d.innerHTML = `<input placeholder="Faction" list="factionList" value="${esc(f)}"><input type="number" step="1" inputmode="numeric" placeholder="pts" value="${esc(n)}"><button type="button" class="x" aria-label="Remove faction">×</button>`;
+    d.querySelector('.x').onclick = () => { d.remove(); chronSum(); };
+    $('#sRep').appendChild(d);
+  }
+  const readRep = () => [...$('#sRep').children].map(d => { const [a, b] = d.querySelectorAll('input'); return { f: a.value.trim(), n: b.value === '' ? '' : +b.value }; }).filter(r => r.f && r.n !== '');
+  const optNum = id => $(id).value === '' ? '' : +$(id).value;
+  function chronSum() {
+    const xp = num($('#sXp').value), g = num($('#sGold').value) - num($('#sSpent').value), acp = num($('#sAcp').value), rep = readRep().reduce((t, r) => t + num(r.n), 0);
+    $('#sChronSum').textContent = [xp && `${fmtN(xp)} XP`, g && `${g > 0 ? '+' : ''}${gp(g)} gp`, acp && `${acp} AcP`, rep && `${fmtN(rep)} rep`].filter(Boolean).join(' · ');
+    $('#sDowntime').textContent = xp ? `Earns ${fmtN(xp * 3)} days of downtime — spend them before the next adventure (Earn Income goes in gold earned).` : '';
+  }
+  $('#sRepAdd').onclick = () => { const c = db.characters.find(x => x.id === $('#sChar').value); repRow($('#sRep').children.length ? '' : (c?.faction || '')); };
+  $('#sChron').addEventListener('input', chronSum);
+
+  ['input', 'change'].forEach(ev => $('#sCode').addEventListener(ev, updateDup));
+  $('#sName').addEventListener('input', () => delete $('#sName').dataset.auto);
+  document.querySelectorAll('input[name=sRole]').forEach(r => r.addEventListener('change', updateDup));
+  $('#sRepeat').addEventListener('change', updateDup);
+
+  function openSession(s) {
+    editingS = s || null;
+    $('#sessionTitle').textContent = s ? 'Edit session' : 'Log session';
+    $('#sType').value = s?.type || 'Scenario';
+    $('#sCode').value = s ? disp(s.key) : ($('#checkInput').value ? disp(norm($('#checkInput').value)) : '');
+    $('#sName').value = s?.title || ''; delete $('#sName').dataset.auto;
+    document.querySelector(`input[name=sRole][value=${s?.role || 'player'}]`).checked = true;
+    $('#sDate').value = s?.date || today();
+    const active = db.characters.filter(c => !c.retired);
+    const lastChar = db.sessions.slice().sort((a, b) => b.created - a.created)[0]?.charId || (active.length === 1 ? active[0].id : '');
+    fillCharSelect(s ? s.charId : lastChar);
+    $('#sEvent').value = s?.event || '';
+    $('#sXp').value = s?.xp ?? '';
+    $('#sGold').value = s?.gold ?? ''; $('#sSpent').value = s?.spent ?? ''; $('#sAcp').value = s?.acp ?? '';
+    $('#sItems').value = s?.items || '';
+    $('#sRep').innerHTML = ''; (s?.rep || []).forEach(r => repRow(r.f, r.n));
+    $('#sChron').open = !s || !!(s.xp || s.gold || s.spent || s.acp || s.items || (s.rep || []).length);
+    chronSum();
+    $('#sRepeat').checked = !!s?.repeatable;
+    $('#sNotes').value = s?.notes || '';
+    $('#sDelete').style.display = s ? '' : 'none';
+    $('#titleList').innerHTML = [...new Set(db.sessions.map(x => x.title).filter(Boolean))].map(t => `<option value="${esc(t)}">`).join('');
+    updateDup();
+    sDlg.showModal();
+  }
+  $('#addSession').onclick = () => openSession();
+  $('#logList').addEventListener('click', e => { const li = e.target.closest('[data-sid]'); if (li) openSession(db.sessions.find(s => s.id === li.dataset.sid)); });
+  $('#sCancel').onclick = () => sDlg.close();
+  $('#sDelete').onclick = () => {
+    if (!editingS || !confirm(`Delete ${disp(editingS.key)} on ${editingS.date}?`)) return;
+    db.sessions = db.sessions.filter(s => s.id !== editingS.id); save(); sDlg.close(); render(); toast('Session deleted');
+  };
+  $('#sessionForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const key = norm($('#sCode').value);
+    if (!key) return;
+    const rec = {
+      id: editingS?.id || uid(), created: editingS?.created || Date.now(),
+      type: $('#sType').value, key, title: $('#sName').value.trim(),
+      role: document.querySelector('input[name=sRole]:checked').value,
+      date: $('#sDate').value, charId: $('#sChar').value,
+      event: $('#sEvent').value.trim(), xp: optNum('#sXp'),
+      gold: optNum('#sGold'), spent: optNum('#sSpent'), acp: optNum('#sAcp'),
+      rep: readRep(), items: $('#sItems').value.trim(),
+      repeatable: $('#sRepeat').checked, notes: $('#sNotes').value.trim()
+    };
+    if (rec.repeatable) db.sessions.forEach(s => { if (s.key === key) s.repeatable = true; });
+    if (editingS) db.sessions[db.sessions.findIndex(s => s.id === editingS.id)] = rec; else db.sessions.push(rec);
+    const lvlMsg = syncLevel(db.characters.find(c => c.id === rec.charId));
+    save(); sDlg.close(); render(); toast(lvlMsg || `Saved ${disp(key)}`);
+  });
+
+  // ---------- character dialog ----------
+  const cDlg = $('#charDlg');
+  let editingC = null;
+  function openChar(c) {
+    editingC = c || null;
+    $('#charTitle').textContent = c ? 'Edit character' : 'New character';
+    $('#cName').value = c?.name || ''; $('#cClass').value = c?.cls || ''; $('#cNum').value = c?.num || '';
+    $('#cLevel').value = c?.level || 1; $('#cFaction').value = c?.faction || ''; $('#cRetired').checked = !!c?.retired;
+    $('#cStartXp').value = c?.startXp ?? ''; $('#cStartGold').value = c?.startGold ?? ''; $('#cStartAcp').value = c?.startAcp ?? ''; $('#cStartRep').value = c?.startRep || '';
+    $('#cStartWrap').open = false;
+    $('#cSummary').innerHTML = c ? totalsHTML(c) : '';
+    $('#cDelete').style.display = c ? '' : 'none';
+    cDlg.showModal();
+  }
+  $('#addChar').onclick = () => openChar();
+  $('#charList').addEventListener('click', e => { const li = e.target.closest('[data-cid]'); if (li) openChar(db.characters.find(c => c.id === li.dataset.cid)); });
+  $('#cCancel').onclick = () => cDlg.close();
+  $('#cDelete').onclick = () => {
+    if (!editingC) return;
+    const n = db.sessions.filter(s => s.charId === editingC.id).length;
+    if (!confirm(`Delete ${editingC.name}?${n ? ` Their ${n} session(s) will be kept but unassigned.` : ''}`)) return;
+    db.sessions.forEach(s => { if (s.charId === editingC.id) s.charId = ''; });
+    db.characters = db.characters.filter(c => c.id !== editingC.id); save(); cDlg.close(); render();
+  };
+  $('#charForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const rec = { id: editingC?.id || uid(), name: $('#cName').value.trim(), cls: $('#cClass').value.trim(), num: $('#cNum').value.trim(),
+      level: +$('#cLevel').value || 1, faction: $('#cFaction').value.trim(), retired: $('#cRetired').checked,
+      startXp: optNum('#cStartXp'), startGold: optNum('#cStartGold'), startAcp: optNum('#cStartAcp'), startRep: $('#cStartRep').value.trim() };
+    if (!rec.name) return;
+    if (editingC) db.characters[db.characters.findIndex(c => c.id === editingC.id)] = rec; else db.characters.push(rec);
+    const lvlMsg = syncLevel(rec);
+    if ($('#fChar').value === rec.id) $('#fLevel').value = rec.level;
+    save(); cDlg.close(); render(); toast(lvlMsg || `Saved ${rec.name}`);
+  });
+
+  // ---------- data ----------
+  function download(name, text, type) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  $('#exportBtn').onclick = () => download(`pfs-tracker-${today()}.json`, JSON.stringify(db, null, 2), 'application/json');
+  $('#exportCsv').onclick = () => {
+    const cols = ['date', 'type', 'code', 'title', 'role', 'character', 'xp', 'gold', 'spent', 'acp', 'reputation', 'items', 'event', 'repeatable', 'notes'];
+    const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const val = (s, c) => c === 'character' ? charName(s.charId) : c === 'code' ? disp(s.key) : c === 'title' ? (s.title || (CAT.get(s.key) || {}).title)
+      : c === 'reputation' ? (s.rep || []).map(r => `${r.f} ${r.n}`).join('; ') : s[c];
+    const rows = db.sessions.slice().sort((a, b) => a.date.localeCompare(b.date)).map(s => cols.map(c => q(val(s, c))).join(','));
+    download(`pfs-sessions-${today()}.csv`, [cols.join(','), ...rows].join('\n'), 'text/csv');
+  };
+  $('#importFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (!Array.isArray(data.sessions) || !Array.isArray(data.characters)) throw new Error('Not a PFS Tracker backup');
+      const replace = confirm('OK = replace everything with this backup.\nCancel = merge it into what is here.');
+      if (replace) db = Object.assign(blank(), data);
+      else {
+        const sIds = new Set(db.sessions.map(s => s.id)), cIds = new Set(db.characters.map(c => c.id));
+        data.characters.forEach(c => { if (!cIds.has(c.id)) db.characters.push(c); });
+        data.sessions.forEach(s => { if (!sIds.has(s.id)) db.sessions.push(s); });
+        if (!db.opId && data.opId) db.opId = data.opId;
+        if (!db.myName && data.myName) db.myName = data.myName;
+      }
+      migrate(); save(); render(); toast('Import complete');
+    } catch (err) { alert('Import failed: ' + err.message); }
+    e.target.value = '';
+  });
+  $('#wipeBtn').onclick = () => {
+    if (!confirm('Erase all characters, sessions and table players on this device? Export a backup first if unsure.')) return;
+    if (prompt('Type ERASE to confirm') !== 'ERASE') return;
+    db = blank(); save(); render(); toast('All data erased');
+  };
+
+  // ---------- opened from someone's share link ----------
+  function handleHash() {
+    if (!location.hash.startsWith('#t=')) return;
+    const sh = parseShare(location.hash);
+    history.replaceState(null, '', location.pathname + location.search);
+    if (!sh) return;
+    if (confirm(`Add ${sh.name || 'this player'} (${sh.played.length} scenarios played) to your table check?`)) {
+      addPlayer(sh.name, sh.played);
+      document.querySelector('nav button[data-tab=find]').click();
+    }
+  }
+
+  render();
+  handleHash();
+  window.addEventListener('hashchange', handleHash);
+  initUpdater();
+
+  // ---------- updater ----------
+  // Flow: on open / return to the app, ask GitHub Pages for sw.js. If VERSION changed,
+  // the browser downloads the new files in the background, then we show the banner.
+  // Tapping Update activates the new version and reloads. localStorage data is untouched.
+  function initUpdater() {
+    let reg = null, waiting = null, reloading = false;
+    const sw = navigator.serviceWorker;
+    const askVersion = worker => new Promise(res => {
+      if (!worker) return res(null);
+      const ch = new MessageChannel(); ch.port1.onmessage = e => res(e.data);
+      worker.postMessage('VERSION', [ch.port2]); setTimeout(() => res(null), 1500);
+    });
+    async function offer(w) {
+      waiting = w;
+      const [cur, next] = await Promise.all([askVersion(sw.controller), askVersion(w)]);
+      $('#updText').textContent = `${cur && next ? cur + ' → ' + next + '. ' : ''}Your characters and logs stay put.`;
+      $('#updBar').hidden = false;
+    }
+    function watch(w) {
+      if (!w) return;
+      w.addEventListener('statechange', () => { if (w.state === 'installed' && sw.controller) offer(w); });
+    }
+    async function check(manual) {
+      if (!reg) { if (manual) toast('Updates work once the app is on GitHub Pages (https).'); return; }
+      try { await reg.update(); } catch (e) { if (manual) toast("Couldn't reach the server — try again when online."); return; }
+      if (!manual) return;
+      if (reg.waiting) offer(reg.waiting);
+      else if (reg.installing) toast('Downloading update…');
+      else toast(`You're on the latest version (${$('#appVer').textContent}).`);
+    }
+    $('#updCheck').onclick = () => check(true);
+    $('#updNow').onclick = () => {
+      $('#updNow').disabled = true; $('#updNow').textContent = 'Updating…';
+      if (waiting) waiting.postMessage('SKIP_WAITING'); else location.reload();
+    };
+
+    if (!('serviceWorker' in navigator) || (location.protocol !== 'https:' && location.hostname !== 'localhost')) { $('#appVer').textContent = 'local copy'; return; }
+    sw.addEventListener('controllerchange', () => { if (!reloading) { reloading = true; location.reload(); } });
+    sw.register('sw.js').then(async r => {
+      reg = r;
+      if (reg.waiting && sw.controller) offer(reg.waiting);
+      reg.addEventListener('updatefound', () => watch(reg.installing));
+      const v = await askVersion(sw.controller || reg.active);
+      $('#appVer').textContent = v || '—';
+      try {
+        const last = localStorage.getItem(KEY + '-ver');
+        if (v && last && last !== v) toast(`Updated to ${v}`);
+        if (v) localStorage.setItem(KEY + '-ver', v);
+      } catch (e) {}
+      check(false);
+    }).catch(() => { $('#appVer').textContent = 'offline cache unavailable'; });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(false); });
+    setInterval(() => check(false), 60 * 60 * 1000);
+  }
+  window.__pfs = { norm, parseShare, buildShare, parseCodes, get db() { return db; } }; // for debugging
+})();
+</script>
+</body>
+</html>
