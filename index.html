@@ -97,6 +97,15 @@ dialog form,dialog .pad{padding:16px}
 .count{font-weight:400;color:var(--muted);font-size:.85rem}
 .updbar{display:flex;gap:12px;align-items:center;border-color:var(--accent);background:var(--warnbg)}
 .updbar[hidden]{display:none}
+dialog{overflow:auto}
+.gains{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.gain{font-size:.76rem;padding:2px 7px;border-radius:6px;background:var(--bg);border:1px solid var(--line);font-variant-numeric:tabular-nums}
+.gain.up{background:var(--okbg);border-color:transparent;color:var(--ok)}
+.gain.down{background:var(--badbg);border-color:transparent;color:var(--bad)}
+.tag.lvl{border-color:var(--accent);background:var(--accent);color:var(--accent-ink);font-weight:600}
+.after{font-size:.78rem;color:var(--muted);margin-top:5px;font-variant-numeric:tabular-nums}
+.items{font-size:.85rem;margin-top:5px;white-space:pre-wrap}
+.charbtns{display:flex;gap:8px;margin-top:10px}
 details.chron{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:12px}
 details.chron summary{cursor:pointer;font-weight:600;font-size:.92rem}
 .reprow{display:flex;gap:8px;margin-top:6px;align-items:center}
@@ -341,6 +350,24 @@ details.chron summary{cursor:pointer;font-weight:600;font-size:.92rem}
   </form>
 </dialog>
 
+<!-- Progression dialog -->
+<dialog id="histDlg">
+  <div class="pad">
+    <div class="row" style="align-items:center">
+      <h2 id="hTitle" style="margin:0"></h2>
+      <div style="flex:0 0 auto"><button type="button" class="x" id="hClose" aria-label="Close">×</button></div>
+    </div>
+    <div class="meta" id="hSub"></div>
+    <div id="hSummary"></div>
+    <h3>Session by session</h3>
+    <ul class="list" id="hList"></ul>
+    <div class="actions">
+      <button type="button" class="btn ghost" id="hCsv">Export CSV</button>
+      <button type="button" class="btn" id="hDone">Done</button>
+    </div>
+  </div>
+</dialog>
+
 <!-- Share dialog -->
 <dialog id="shareDlg">
   <div class="pad">
@@ -576,6 +603,7 @@ details.chron summary{cursor:pointer;font-weight:600;font-size:.92rem}
           <div class="meta">${[esc(c.cls), 'Level ' + esc(c.level), esc(c.faction), pid].filter(Boolean).join(' · ')}</div>
           <div class="meta">${t.played} played · ${t.gm} GM credit</div>
           ${totalsHTML(c)}
+          <div class="charbtns"><button type="button" class="btn small" data-hist="${c.id}">Progression</button><button type="button" class="btn small ghost" data-edit="${c.id}">Edit</button></div>
         </div></li>`;
     }).join('') : `<li class="empty">Add a character so sessions can be credited to them.</li>`;
 
@@ -891,7 +919,81 @@ details.chron summary{cursor:pointer;font-weight:600;font-size:.92rem}
     cDlg.showModal();
   }
   $('#addChar').onclick = () => openChar();
-  $('#charList').addEventListener('click', e => { const li = e.target.closest('[data-cid]'); if (li) openChar(db.characters.find(c => c.id === li.dataset.cid)); });
+  $('#charList').addEventListener('click', e => {
+    const h = e.target.closest('[data-hist]'); if (h) { openHist(h.dataset.hist); return; }
+    const li = e.target.closest('[data-cid]'); if (li) openChar(db.characters.find(c => c.id === li.dataset.cid));
+  });
+
+  // ---------- progression (per-character, session by session) ----------
+  const levelOf = xp => Math.min(20, 1 + Math.floor(xp / XP_PER_LEVEL));
+  function progression(c) {
+    const ss = db.sessions.filter(s => s.charId === c.id).sort((a, b) => a.date.localeCompare(b.date) || a.created - b.created);
+    const t = { xp: num(c.startXp), gold: (c.startGold === '' || c.startGold == null) ? START_GOLD : num(c.startGold), acp: num(c.startAcp), rep: parseRep(c.startRep) };
+    const start = { xp: t.xp, gold: t.gold, acp: t.acp, rep: { ...t.rep }, level: levelOf(t.xp) };
+    const rows = ss.map(s => {
+      const before = levelOf(t.xp);
+      const d = { xp: num(s.xp), earned: num(s.gold), spent: num(s.spent), acp: num(s.acp), rep: (s.rep || []).filter(r => r.f && num(r.n)) };
+      t.xp += d.xp; t.gold += d.earned - d.spent; t.acp += d.acp;
+      d.rep.forEach(r => { t.rep[r.f] = (t.rep[r.f] || 0) + num(r.n); });
+      const level = levelOf(t.xp);
+      return { s, d, after: { xp: t.xp, gold: t.gold, acp: t.acp, level }, levelUp: level > before ? level : 0 };
+    });
+    return { start, rows, end: { ...t, level: levelOf(t.xp) } };
+  }
+  const sign = n => (n > 0 ? '+' : n < 0 ? '−' : '') + fmtN(Math.abs(n));
+  function histRow(r) {
+    const { s, d, after } = r;
+    const title = s.title || (CAT.get(s.key) || {}).title || s.type;
+    const g = [];
+    if (d.xp) g.push(`<span class="gain up">${sign(d.xp)} XP</span>`);
+    if (d.earned) g.push(`<span class="gain up">+${gp(d.earned)} gp</span>`);
+    if (d.spent) g.push(`<span class="gain down">−${gp(d.spent)} gp</span>`);
+    if (d.acp) g.push(`<span class="gain up">${sign(d.acp)} AcP</span>`);
+    d.rep.forEach(x => g.push(`<span class="gain ${num(x.n) < 0 ? 'down' : 'up'}">${esc(x.f)} ${sign(num(x.n))}</span>`));
+    if (num(s.xp) || num(s.gold)) {} // keep downtime implicit
+    const dt = d.xp ? ` · ${fmtN(d.xp * 3)} days downtime` : '';
+    return `<li class="item tap" data-hs="${s.id}">
+      <div class="code">${esc(disp(s.key))}</div>
+      <div style="flex:1;min-width:0">
+        <div>${esc(title)} ${r.levelUp ? `<span class="tag lvl">Level ${r.levelUp}!</span>` : ''}</div>
+        <div class="meta"><span class="tag ${s.role === 'gm' ? 'gm' : 'pl'}">${s.role === 'gm' ? 'GM credit' : 'Played'}</span>${esc(s.date)}${s.event ? ' · ' + esc(s.event) : ''}${dt}</div>
+        ${g.length ? `<div class="gains">${g.join('')}</div>` : `<div class="meta" style="margin-top:4px">No chronicle rewards logged — tap to add them.</div>`}
+        ${s.items ? `<div class="items">${esc(s.items)}</div>` : ''}
+        ${s.notes ? `<div class="meta" style="margin-top:3px;font-style:italic">${esc(s.notes)}</div>` : ''}
+        <div class="after">After: Level ${after.level} · ${fmtN(after.xp)} XP · ${gp(after.gold)} gp · ${fmtN(after.acp)} AcP</div>
+      </div></li>`;
+  }
+  const histDlg = $('#histDlg');
+  let histChar = null, histReturn = null;
+  function openHist(id) {
+    const c = db.characters.find(x => x.id === id); if (!c) return;
+    histChar = c;
+    const p = progression(c);
+    $('#hTitle').textContent = `${c.name} — progression`;
+    $('#hSub').textContent = [c.cls, 'Level ' + c.level, c.faction, `${p.rows.length} session${p.rows.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
+    $('#hSummary').innerHTML = totalsHTML(c);
+    const startBits = [`Level ${p.start.level}`, `${fmtN(p.start.xp)} XP`, `${gp(p.start.gold)} gp`, `${fmtN(p.start.acp)} AcP`, repText(p.start.rep)].filter(Boolean).join(' · ');
+    const startRow = `<li class="item"><div class="code">Start</div><div style="flex:1"><div>${num(c.startXp) || num(c.startAcp) || c.startRep || (c.startGold !== '' && c.startGold != null) ? 'Before tracking' : 'New character'}</div><div class="after">${esc(startBits)}</div></div></li>`;
+    $('#hList').innerHTML = startRow + (p.rows.length ? p.rows.map(histRow).join('') : `<li class="empty">No sessions credited to ${esc(c.name)} yet.</li>`);
+    if (!histDlg.open) histDlg.showModal();
+  }
+  $('#hList').addEventListener('click', e => {
+    const li = e.target.closest('[data-hs]'); if (!li) return;
+    histReturn = histChar.id; histDlg.close();
+    openSession(db.sessions.find(s => s.id === li.dataset.hs));
+  });
+  sDlg.addEventListener('close', () => { if (histReturn) { const id = histReturn; histReturn = null; openHist(id); } });
+  $('#hClose').onclick = $('#hDone').onclick = () => histDlg.close();
+  $('#hCsv').onclick = () => {
+    const c = histChar, p = progression(c);
+    const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const head = ['date', 'code', 'title', 'role', 'event', 'xp', 'gold earned', 'gold spent', 'acp', 'reputation', 'items & boons', 'notes', 'level after', 'total xp', 'total gold', 'total acp'];
+    const rows = p.rows.map(({ s, d, after }) => [s.date, disp(s.key), s.title || (CAT.get(s.key) || {}).title || '', s.role === 'gm' ? 'GM credit' : 'Played', s.event,
+      d.xp || '', d.earned || '', d.spent || '', d.acp || '', d.rep.map(x => `${x.f} ${x.n}`).join('; '), s.items, s.notes,
+      after.level, fmtN(after.xp), fmtN(after.gold), fmtN(after.acp)].map(q).join(','));
+    const startLine = ['', 'START', 'Before tracking', '', '', '', '', '', '', repText(p.start.rep), '', '', p.start.level, fmtN(p.start.xp), fmtN(p.start.gold), fmtN(p.start.acp)].map(q).join(',');
+    download(`${c.name.replace(/[^\w-]+/g, '_')}-progression-${today()}.csv`, [head.join(','), startLine, ...rows].join('\n'), 'text/csv');
+  };
   $('#cCancel').onclick = () => cDlg.close();
   $('#cDelete').onclick = () => {
     if (!editingC) return;
